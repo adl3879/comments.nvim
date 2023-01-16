@@ -1,2 +1,2 @@
 # comments.nvim
-Comment files.
+Neovim plugin that allows you to comment single or multiple lines of code.
