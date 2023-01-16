@@ -1,9 +1,21 @@
 local M = {}
 
-local function check_if_commented(current_line, comment_symbol)
-    if current_line:sub(1, #comment_symbol) == comment_symbol then
-        return true
+local function check_if_commented(lines, comment_symbol)
+    local commented = false
+    for _, current_line in ipairs(lines) do
+        if current_line:sub(1, #comment_symbol) == comment_symbol then
+            commented = true
+        else
+            commented = false
+            break
+        end
     end
+    return commented
+end
+
+local function is_line_empty()
+    local current_line = vim.fn.getline(".")
+    if current_line == "" then return true end
     return false
 end
 
@@ -13,12 +25,12 @@ M.config = {
 }
 
 
-function M.setup(self, opts)
-    self.multiple_line_comments = opts.multiple_line_comments or M.config.multiple_line_comments
-    self.empty_line_comment = opts.empty_line_comment or M.config.empty_line_comment
+function M.setup(opts)
 end
 
 function M.single_line_comment()
+    if is_line_empty() then return end
+
     local comment = vim.api.nvim_buf_get_option(0, "commentstring")
     local comment_symbol = string.sub(comment, 1, 2)
     -- get current line
@@ -26,9 +38,10 @@ function M.single_line_comment()
 
     -- update current line with appropiate comment
     local comment_line = string.gsub(current_line, "^", comment_symbol.." ")
+    local lines = {current_line}
 
     local curr = vim.api.nvim_win_get_cursor(0)[1]
-    if not check_if_commented(current_line, comment_symbol) then
+    if not check_if_commented(lines, comment_symbol) then
         vim.api.nvim_buf_set_lines(0, curr - 1, curr, false, {comment_line})
     else
         local previous_line = current_line:sub(#comment_symbol + 2)
@@ -37,6 +50,8 @@ function M.single_line_comment()
 end
 
 function M.multi_line_comment()
+    if is_line_empty() then return end
+
     M.select_comment_chunk()
     local comment = vim.api.nvim_buf_get_option(0, "commentstring")
     local comment_symbol = string.sub(comment, 1, 2)
@@ -54,7 +69,15 @@ function M.multi_line_comment()
     end
 
     -- replace lines
-    vim.api.nvim_buf_set_lines(0, line_start - 1, line_end, false, comment_lines)
+    if not check_if_commented(lines, comment_symbol) then
+        vim.api.nvim_buf_set_lines(0, line_start - 1, line_end, false, comment_lines)
+    else
+        local previous_lines = {}
+        for i, line in ipairs(lines) do
+            previous_lines[i] = line:sub(#comment_symbol + 2)
+        end
+        vim.api.nvim_buf_set_lines(0, line_start - 1, line_end, false, previous_lines)
+    end
 end
 
 function M.select_comment_chunk()
@@ -75,9 +98,5 @@ function M.select_comment_chunk()
         vim.cmd([[execute "normal! `<v`>"]])
     end
 end
-
- function M.test()
-    print"testing"
- end
 
 return M
